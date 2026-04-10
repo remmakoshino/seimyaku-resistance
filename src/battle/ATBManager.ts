@@ -72,6 +72,11 @@ export class ATBManager {
       }
     }
 
+    // 新たにreadyになったユニットがなければ、既存のreadyユニットを返す
+    if (!readyUnit) {
+      readyUnit = this.units.find(u => u.isAlive && u.isReady) ?? null;
+    }
+
     return readyUnit;
   }
 

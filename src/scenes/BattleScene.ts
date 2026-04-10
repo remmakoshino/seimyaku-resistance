@@ -965,9 +965,6 @@ export class BattleScene extends Phaser.Scene {
         this.battleSystem.getATBManager().pause();
         const events = this.battleSystem.executeEnemyAction(readyUnit.id);
         this.processEvents(events);
-        this.time.delayedCall(events.length * 400 + 500, () => {
-          this.battleSystem.getATBManager().resume();
-        });
       }
     }
   }
