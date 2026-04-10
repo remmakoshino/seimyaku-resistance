@@ -612,7 +612,14 @@ export class BattleScene extends Phaser.Scene {
       this.time.delayedCall(delay, () => {
         this.displayEvent(event);
       });
-      delay += event.type === 'awaken' ? 1500 : 400;
+      // スキル攻撃は長めの演出時間
+      if (event.type === 'damage' && event.skillName) {
+        delay += 700;
+      } else if (event.type === 'awaken') {
+        delay += 1500;
+      } else {
+        delay += 400;
+      }
     });
 
     this.time.delayedCall(delay + 300, () => {
@@ -630,44 +637,111 @@ export class BattleScene extends Phaser.Scene {
         const targetSprite = this.enemySprites.get(event.targetId) ?? this.allySprites.get(event.targetId);
         if (!targetSprite) break;
 
+        const isSkill = !!event.skillName;
+        const element = event.element ?? 'none';
+
+        if (isSkill) {
+          // スキル名表示
+          const elemColor = this.getElementColorHex(element);
+          const skillText = this.add.text(width / 2, height * 0.28, event.skillName!, {
+            fontFamily: GAME.FONT_FAMILY,
+            fontSize: '26px',
+            color: elemColor,
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 4,
+          }).setOrigin(0.5).setAlpha(0).setScale(1.5);
+
+          this.tweens.add({
+            targets: skillText,
+            alpha: 1,
+            scaleX: 1,
+            scaleY: 1,
+            duration: 200,
+            ease: 'Back.easeOut',
+            onComplete: () => {
+              this.tweens.add({
+                targets: skillText,
+                alpha: 0,
+                y: skillText.y - 20,
+                delay: 300,
+                duration: 300,
+                onComplete: () => skillText.destroy(),
+              });
+            },
+          });
+
+          // 属性エフェクト + SE
+          audioGenerator.playElementSE(element);
+          this.displayElementEffect(element, targetSprite.x, targetSprite.y);
+
+          // 属性フラッシュオーバーレイ
+          const flashColor = this.getElementColor(element);
+          const flash = this.add.graphics();
+          flash.fillStyle(flashColor, 0.15);
+          flash.fillRect(0, 0, width, height);
+          this.tweens.add({
+            targets: flash,
+            alpha: 0,
+            duration: 400,
+            onComplete: () => flash.destroy(),
+          });
+
+          // スクリーンシェイク（強め）
+          this.cameras.main.shake(200, 0.025);
+        } else {
+          // 通常攻撃
+          audioGenerator.playAttackSE();
+
+          // 斬撃エフェクト
+          this.displaySlashEffect(targetSprite.x, targetSprite.y);
+
+          // スクリーンシェイク
+          this.cameras.main.shake(100, 0.012);
+        }
+
         audioGenerator.playDamageSE();
 
-        // ダメージ数値
+        // ダメージ数値（属性カラー、スキル時は大きく）
+        const dmgColor = isSkill ? this.getElementColorHex(element) : '#FF4444';
+        const dmgSize = isSkill ? '36px' : '28px';
         const dmgText = this.add.text(targetSprite.x, targetSprite.y - 30, `${event.value}`, {
           fontFamily: GAME.FONT_FAMILY,
-          fontSize: '28px',
-          color: '#FF4444',
+          fontSize: dmgSize,
+          color: dmgColor,
           fontStyle: 'bold',
           stroke: '#000000',
-          strokeThickness: 3,
-        }).setOrigin(0.5);
+          strokeThickness: 4,
+        }).setOrigin(0.5).setScale(isSkill ? 1.3 : 1);
 
         this.tweens.add({
           targets: dmgText,
-          y: dmgText.y - 40,
+          y: dmgText.y - 50,
+          scaleX: 1,
+          scaleY: 1,
           alpha: 0,
-          duration: 800,
+          duration: 1000,
           ease: 'Power2',
           onComplete: () => dmgText.destroy(),
         });
 
-        // スクリーンシェイク
-        this.cameras.main.shake(100, 0.01);
-
-        // 被ダメアニメ（赤フラッシュ）
+        // 被ダメアニメ（赤フラッシュ → 点滅）
+        const tintColor = isSkill ? this.getElementColor(element) : 0xFF0000;
         this.tweens.add({
           targets: targetSprite,
-          tint: 0xFF0000,
-          duration: 100,
+          tint: tintColor,
+          duration: 80,
           yoyo: true,
+          repeat: isSkill ? 2 : 1,
           onComplete: () => targetSprite.clearTint(),
         });
 
-        // ノックバック
+        // ノックバック（スキル時は大きく）
         const isAlly = this.allySprites.has(event.targetId);
+        const knockback = isSkill ? 25 : 15;
         this.tweens.add({
           targets: targetSprite,
-          x: targetSprite.x + (isAlly ? 15 : -15),
+          x: targetSprite.x + (isAlly ? knockback : -knockback),
           duration: 80,
           yoyo: true,
         });
@@ -679,10 +753,30 @@ export class BattleScene extends Phaser.Scene {
 
         audioGenerator.playHealSE();
 
+        // 回復パーティクル（光の粒が上昇）
+        for (let i = 0; i < 8; i++) {
+          const particle = this.add.graphics();
+          particle.fillStyle(0x44FF88, 0.8);
+          particle.fillCircle(0, 0, 3);
+          particle.setPosition(
+            targetSprite.x + (Math.random() - 0.5) * 50,
+            targetSprite.y + 20,
+          );
+          this.tweens.add({
+            targets: particle,
+            y: particle.y - 60 - Math.random() * 30,
+            x: particle.x + (Math.random() - 0.5) * 20,
+            alpha: 0,
+            duration: 600 + Math.random() * 300,
+            delay: i * 40,
+            onComplete: () => particle.destroy(),
+          });
+        }
+
         const healText = this.add.text(targetSprite.x, targetSprite.y - 30, `+${event.value}`, {
           fontFamily: GAME.FONT_FAMILY,
-          fontSize: '24px',
-          color: '#44FF44',
+          fontSize: '28px',
+          color: '#44FF88',
           fontStyle: 'bold',
           stroke: '#000000',
           strokeThickness: 3,
@@ -690,71 +784,112 @@ export class BattleScene extends Phaser.Scene {
 
         this.tweens.add({
           targets: healText,
-          y: healText.y - 40,
+          y: healText.y - 50,
           alpha: 0,
-          duration: 800,
+          duration: 900,
           ease: 'Power2',
           onComplete: () => healText.destroy(),
         });
         break;
       }
       case 'weak': {
-        const weakText = this.add.text(width / 2, height * 0.35, 'WEAK!', {
+        const weakText = this.add.text(width / 2, height * 0.35, '⚡ WEAK! ⚡', {
           fontFamily: GAME.FONT_FAMILY,
-          fontSize: '40px',
-          color: '#FF4444',
+          fontSize: '44px',
+          color: '#FF2222',
           fontStyle: 'bold',
           stroke: '#000000',
-          strokeThickness: 4,
-        }).setOrigin(0.5);
+          strokeThickness: 5,
+        }).setOrigin(0.5).setScale(0.3);
 
         this.tweens.add({
           targets: weakText,
-          scaleX: 1.5,
-          scaleY: 1.5,
-          alpha: 0,
-          duration: 600,
-          ease: 'Power2',
-          onComplete: () => weakText.destroy(),
+          scaleX: 1.2,
+          scaleY: 1.2,
+          duration: 200,
+          ease: 'Back.easeOut',
+          onComplete: () => {
+            this.tweens.add({
+              targets: weakText,
+              scaleX: 1.8,
+              scaleY: 1.8,
+              alpha: 0,
+              duration: 500,
+              ease: 'Power2',
+              onComplete: () => weakText.destroy(),
+            });
+          },
         });
-        this.cameras.main.shake(200, 0.02);
+        this.cameras.main.shake(250, 0.03);
+        // 赤フラッシュ
+        const weakFlash = this.add.graphics();
+        weakFlash.fillStyle(0xFF0000, 0.2);
+        weakFlash.fillRect(0, 0, width, height);
+        this.tweens.add({
+          targets: weakFlash,
+          alpha: 0,
+          duration: 300,
+          onComplete: () => weakFlash.destroy(),
+        });
         break;
       }
       case 'resist': {
         const resistText = this.add.text(width / 2, height * 0.35, 'RESIST', {
           fontFamily: GAME.FONT_FAMILY,
-          fontSize: '32px',
-          color: '#4488FF',
-          fontStyle: 'bold',
-          stroke: '#000000',
-          strokeThickness: 3,
-        }).setOrigin(0.5);
-
-        this.tweens.add({
-          targets: resistText,
-          alpha: 0,
-          duration: 600,
-          onComplete: () => resistText.destroy(),
-        });
-        break;
-      }
-      case 'critical': {
-        const critText = this.add.text(width / 2, height * 0.3, 'CRITICAL!', {
-          fontFamily: GAME.FONT_FAMILY,
-          fontSize: '36px',
-          color: '#FFD700',
+          fontSize: '34px',
+          color: '#6688CC',
           fontStyle: 'bold',
           stroke: '#000000',
           strokeThickness: 4,
         }).setOrigin(0.5);
 
         this.tweens.add({
-          targets: critText,
-          scaleX: 1.3, scaleY: 1.3,
+          targets: resistText,
           alpha: 0,
+          y: resistText.y - 15,
           duration: 700,
-          onComplete: () => critText.destroy(),
+          onComplete: () => resistText.destroy(),
         });
+        break;
+      }
+      case 'critical': {
+        const critText = this.add.text(width / 2, height * 0.3, '💥 CRITICAL! 💥', {
+          fontFamily: GAME.FONT_FAMILY,
+          fontSize: '42px',
+          color: '#FFD700',
+          fontStyle: 'bold',
+          stroke: '#000000',
+          strokeThickness: 5,
+        }).setOrigin(0.5).setScale(0.3);
+
+        this.tweens.add({
+          targets: critText,
+          scaleX: 1.3,
+          scaleY: 1.3,
+          duration: 200,
+          ease: 'Back.easeOut',
+          onComplete: () => {
+            this.tweens.add({
+              targets: critText,
+              scaleX: 2,
+              scaleY: 2,
+              alpha: 0,
+              duration: 600,
+              onComplete: () => critText.destroy(),
+            });
+          },
+        });
+        // ゴールドフラッシュ
+        const critFlash = this.add.graphics();
+        critFlash.fillStyle(0xFFD700, 0.15);
+        critFlash.fillRect(0, 0, width, height);
+        this.tweens.add({
+          targets: critFlash,
+          alpha: 0,
+          duration: 400,
+          onComplete: () => critFlash.destroy(),
+        });
+        this.cameras.main.shake(200, 0.025);
         break;
       }
       case 'death': {
@@ -937,6 +1072,352 @@ export class BattleScene extends Phaser.Scene {
       none: 0xCCCCCC,
     };
     return map[element] ?? 0xCCCCCC;
+  }
+
+  private getElementColorHex(element: string): string {
+    const map: Record<string, string> = {
+      fire: '#FF6633',
+      ice: '#66CCFF',
+      thunder: '#FFD700',
+      water: '#3388FF',
+      light: '#FFFFCC',
+      dark: '#AA55DD',
+      none: '#CCCCCC',
+    };
+    return map[element] ?? '#CCCCCC';
+  }
+
+  private displaySlashEffect(x: number, y: number): void {
+    const slash = this.add.graphics();
+    slash.lineStyle(3, 0xFFFFFF, 0.9);
+    // 斜めの斬撃ライン
+    const len = 40;
+    slash.beginPath();
+    slash.moveTo(x - len, y - len);
+    slash.lineTo(x + len, y + len);
+    slash.strokePath();
+    slash.beginPath();
+    slash.moveTo(x + len, y - len * 0.5);
+    slash.lineTo(x - len, y + len * 0.5);
+    slash.strokePath();
+
+    this.tweens.add({
+      targets: slash,
+      alpha: 0,
+      duration: 300,
+      onComplete: () => slash.destroy(),
+    });
+  }
+
+  private displayElementEffect(element: string, x: number, y: number): void {
+    switch (element) {
+      case 'fire': this.displayFireEffect(x, y); break;
+      case 'ice': this.displayIceEffect(x, y); break;
+      case 'thunder': this.displayThunderEffect(x, y); break;
+      case 'water': this.displayWaterEffect(x, y); break;
+      case 'light': this.displayLightEffect(x, y); break;
+      case 'dark': this.displayDarkEffect(x, y); break;
+    }
+  }
+
+  private displayFireEffect(x: number, y: number): void {
+    // 炎パーティクル（赤〜オレンジの粒が上昇）
+    for (let i = 0; i < 16; i++) {
+      const particle = this.add.graphics();
+      const colors = [0xFF2200, 0xFF6600, 0xFFAA00, 0xFF4400];
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      const size = 3 + Math.random() * 5;
+      particle.fillStyle(color, 0.9);
+      particle.fillCircle(0, 0, size);
+      particle.setPosition(
+        x + (Math.random() - 0.5) * 60,
+        y + (Math.random() - 0.5) * 30,
+      );
+
+      this.tweens.add({
+        targets: particle,
+        y: particle.y - 50 - Math.random() * 60,
+        x: particle.x + (Math.random() - 0.5) * 40,
+        scaleX: 0,
+        scaleY: 0,
+        alpha: 0,
+        duration: 400 + Math.random() * 300,
+        delay: i * 25,
+        ease: 'Power1',
+        onComplete: () => particle.destroy(),
+      });
+    }
+
+    // 爆発リング
+    const ring = this.add.graphics();
+    ring.lineStyle(4, 0xFF4400, 0.8);
+    ring.strokeCircle(x, y, 5);
+    this.tweens.add({
+      targets: ring,
+      scaleX: 4,
+      scaleY: 4,
+      alpha: 0,
+      duration: 400,
+      ease: 'Power2',
+      onComplete: () => ring.destroy(),
+    });
+  }
+
+  private displayIceEffect(x: number, y: number): void {
+    // 氷結晶パーティクル
+    for (let i = 0; i < 12; i++) {
+      const crystal = this.add.graphics();
+      const colors = [0x88CCFF, 0xAADDFF, 0xCCEEFF, 0xFFFFFF];
+      crystal.fillStyle(colors[Math.floor(Math.random() * colors.length)], 0.9);
+      // ダイヤ形の結晶
+      const s = 4 + Math.random() * 4;
+      crystal.fillPoints([
+        new Phaser.Geom.Point(0, -s),
+        new Phaser.Geom.Point(s * 0.6, 0),
+        new Phaser.Geom.Point(0, s),
+        new Phaser.Geom.Point(-s * 0.6, 0),
+      ], true);
+      const angle = (i / 12) * Math.PI * 2;
+      const dist = 5;
+      crystal.setPosition(x + Math.cos(angle) * dist, y + Math.sin(angle) * dist);
+
+      this.tweens.add({
+        targets: crystal,
+        x: x + Math.cos(angle) * (40 + Math.random() * 30),
+        y: y + Math.sin(angle) * (40 + Math.random() * 30),
+        angle: Math.random() * 360,
+        alpha: 0,
+        duration: 500 + Math.random() * 300,
+        delay: i * 20,
+        ease: 'Power2',
+        onComplete: () => crystal.destroy(),
+      });
+    }
+
+    // フロストリング
+    const frost = this.add.graphics();
+    frost.lineStyle(3, 0xAADDFF, 0.7);
+    frost.strokeCircle(x, y, 10);
+    this.tweens.add({
+      targets: frost,
+      scaleX: 3.5,
+      scaleY: 3.5,
+      alpha: 0,
+      duration: 500,
+      onComplete: () => frost.destroy(),
+    });
+  }
+
+  private displayThunderEffect(x: number, y: number): void {
+    // 稲妻ライン（上から落ちてくる）
+    for (let i = 0; i < 3; i++) {
+      const lightning = this.add.graphics();
+      lightning.lineStyle(3 - i * 0.5, 0xFFDD00, 0.9 - i * 0.2);
+      lightning.beginPath();
+      let lx = x + (Math.random() - 0.5) * 40;
+      let ly = y - 100;
+      lightning.moveTo(lx, ly);
+
+      for (let s = 0; s < 6; s++) {
+        lx += (Math.random() - 0.5) * 25;
+        ly += 18 + Math.random() * 10;
+        lightning.lineTo(lx, ly);
+      }
+      lightning.lineTo(x + (Math.random() - 0.5) * 10, y);
+      lightning.strokePath();
+
+      this.tweens.add({
+        targets: lightning,
+        alpha: 0,
+        duration: 200 + i * 100,
+        delay: i * 50,
+        onComplete: () => lightning.destroy(),
+      });
+    }
+
+    // 白フラッシュ
+    const { width, height } = this.scale.gameSize;
+    const flash = this.add.graphics();
+    flash.fillStyle(0xFFFFFF, 0.3);
+    flash.fillRect(0, 0, width, height);
+    this.tweens.add({
+      targets: flash,
+      alpha: 0,
+      duration: 150,
+      onComplete: () => flash.destroy(),
+    });
+
+    // スパーク
+    for (let i = 0; i < 8; i++) {
+      const spark = this.add.graphics();
+      spark.fillStyle(0xFFFF66, 0.8);
+      spark.fillCircle(0, 0, 2);
+      spark.setPosition(x, y);
+      const angle = Math.random() * Math.PI * 2;
+      this.tweens.add({
+        targets: spark,
+        x: x + Math.cos(angle) * (30 + Math.random() * 20),
+        y: y + Math.sin(angle) * (30 + Math.random() * 20),
+        alpha: 0,
+        duration: 250,
+        delay: 50 + i * 15,
+        onComplete: () => spark.destroy(),
+      });
+    }
+  }
+
+  private displayWaterEffect(x: number, y: number): void {
+    // 水しぶき（泡＋ウェーブ）
+    for (let i = 0; i < 14; i++) {
+      const drop = this.add.graphics();
+      const colors = [0x2266FF, 0x44AAFF, 0x66CCFF, 0x88DDFF];
+      drop.fillStyle(colors[Math.floor(Math.random() * colors.length)], 0.7);
+      drop.fillCircle(0, 0, 2 + Math.random() * 4);
+      drop.setPosition(x + (Math.random() - 0.5) * 20, y);
+
+      const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 0.8;
+      const speed = 40 + Math.random() * 40;
+      this.tweens.add({
+        targets: drop,
+        x: drop.x + Math.cos(angle) * speed,
+        y: drop.y + Math.sin(angle) * speed + 30,
+        alpha: 0,
+        scaleX: 0.3,
+        scaleY: 0.3,
+        duration: 500 + Math.random() * 200,
+        delay: i * 20,
+        ease: 'Power1',
+        onComplete: () => drop.destroy(),
+      });
+    }
+
+    // 波紋
+    for (let i = 0; i < 3; i++) {
+      const wave = this.add.graphics();
+      wave.lineStyle(2, 0x44AAFF, 0.6);
+      wave.strokeCircle(x, y + 10, 5);
+      this.tweens.add({
+        targets: wave,
+        scaleX: 2 + i,
+        scaleY: 1.5 + i * 0.5,
+        alpha: 0,
+        duration: 500,
+        delay: i * 120,
+        onComplete: () => wave.destroy(),
+      });
+    }
+  }
+
+  private displayLightEffect(x: number, y: number): void {
+    // 放射状の光線
+    const numRays = 8;
+    for (let i = 0; i < numRays; i++) {
+      const ray = this.add.graphics();
+      const angle = (i / numRays) * Math.PI * 2;
+      ray.fillStyle(0xFFFFDD, 0.6);
+      ray.fillPoints([
+        new Phaser.Geom.Point(x, y),
+        new Phaser.Geom.Point(x + Math.cos(angle - 0.05) * 8, y + Math.sin(angle - 0.05) * 8),
+        new Phaser.Geom.Point(x + Math.cos(angle) * 50, y + Math.sin(angle) * 50),
+        new Phaser.Geom.Point(x + Math.cos(angle + 0.05) * 8, y + Math.sin(angle + 0.05) * 8),
+      ], true);
+      ray.setAlpha(0);
+
+      this.tweens.add({
+        targets: ray,
+        alpha: 0.8,
+        scaleX: 1.5,
+        scaleY: 1.5,
+        duration: 200,
+        delay: i * 30,
+        yoyo: true,
+        hold: 100,
+        onComplete: () => ray.destroy(),
+      });
+    }
+
+    // 中心の輝き
+    const glow = this.add.graphics();
+    glow.fillStyle(0xFFFFFF, 0.8);
+    glow.fillCircle(x, y, 8);
+    this.tweens.add({
+      targets: glow,
+      scaleX: 4,
+      scaleY: 4,
+      alpha: 0,
+      duration: 500,
+      onComplete: () => glow.destroy(),
+    });
+
+    // 金色パーティクル
+    for (let i = 0; i < 10; i++) {
+      const sparkle = this.add.graphics();
+      sparkle.fillStyle(0xFFFFAA, 0.9);
+      sparkle.fillCircle(0, 0, 2);
+      sparkle.setPosition(x, y);
+      const angle = Math.random() * Math.PI * 2;
+      this.tweens.add({
+        targets: sparkle,
+        x: x + Math.cos(angle) * (35 + Math.random() * 25),
+        y: y + Math.sin(angle) * (35 + Math.random() * 25),
+        alpha: 0,
+        duration: 400 + Math.random() * 200,
+        delay: 100 + i * 20,
+        onComplete: () => sparkle.destroy(),
+      });
+    }
+  }
+
+  private displayDarkEffect(x: number, y: number): void {
+    // 闇の渦パーティクル（内向きに吸い込まれる）
+    for (let i = 0; i < 14; i++) {
+      const shadow = this.add.graphics();
+      const colors = [0x440066, 0x660088, 0x330044, 0x220033];
+      shadow.fillStyle(colors[Math.floor(Math.random() * colors.length)], 0.8);
+      shadow.fillCircle(0, 0, 3 + Math.random() * 4);
+      const angle = (i / 14) * Math.PI * 2;
+      const dist = 50 + Math.random() * 30;
+      shadow.setPosition(x + Math.cos(angle) * dist, y + Math.sin(angle) * dist);
+
+      this.tweens.add({
+        targets: shadow,
+        x: x + (Math.random() - 0.5) * 10,
+        y: y + (Math.random() - 0.5) * 10,
+        scaleX: 0,
+        scaleY: 0,
+        alpha: 0,
+        duration: 400 + Math.random() * 200,
+        delay: i * 20,
+        ease: 'Power3',
+        onComplete: () => shadow.destroy(),
+      });
+    }
+
+    // 闇のリング（拡大→縮小）
+    const darkRing = this.add.graphics();
+    darkRing.lineStyle(4, 0x8844AA, 0.8);
+    darkRing.strokeCircle(x, y, 30);
+    this.tweens.add({
+      targets: darkRing,
+      scaleX: 0.2,
+      scaleY: 0.2,
+      alpha: 0,
+      duration: 500,
+      ease: 'Power2',
+      onComplete: () => darkRing.destroy(),
+    });
+
+    // 暗転フラッシュ
+    const { width, height } = this.scale.gameSize;
+    const dark = this.add.graphics();
+    dark.fillStyle(0x000000, 0.3);
+    dark.fillRect(0, 0, width, height);
+    this.tweens.add({
+      targets: dark,
+      alpha: 0,
+      duration: 400,
+      onComplete: () => dark.destroy(),
+    });
   }
 
   update(_time: number, delta: number): void {

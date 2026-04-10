@@ -59,6 +59,173 @@ export class AudioGenerator {
     osc.stop(ctx.currentTime + 0.5);
   }
 
+  playFireSE(): void {
+    const ctx = this.ensureContext();
+    // 低音のゴウゴウ音 + 高音クラックル
+    const noise = ctx.createOscillator();
+    const noiseGain = ctx.createGain();
+    noise.type = 'sawtooth';
+    noise.frequency.setValueAtTime(80, ctx.currentTime);
+    noise.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.2);
+    noise.frequency.exponentialRampToValueAtTime(60, ctx.currentTime + 0.5);
+    noiseGain.gain.setValueAtTime(0.25, ctx.currentTime);
+    noiseGain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+    noise.connect(noiseGain);
+    noiseGain.connect(this.seGain!);
+    noise.start(ctx.currentTime);
+    noise.stop(ctx.currentTime + 0.5);
+    // クラックル
+    const crackle = ctx.createOscillator();
+    const crackleGain = ctx.createGain();
+    crackle.type = 'square';
+    crackle.frequency.setValueAtTime(2000, ctx.currentTime + 0.1);
+    crackle.frequency.exponentialRampToValueAtTime(500, ctx.currentTime + 0.4);
+    crackleGain.gain.setValueAtTime(0.08, ctx.currentTime + 0.1);
+    crackleGain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+    crackle.connect(crackleGain);
+    crackleGain.connect(this.seGain!);
+    crackle.start(ctx.currentTime + 0.1);
+    crackle.stop(ctx.currentTime + 0.4);
+  }
+
+  playIceSE(): void {
+    const ctx = this.ensureContext();
+    // キラキラした結晶音
+    const notes = [1200, 1600, 2000, 1400];
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, ctx.currentTime + i * 0.08);
+      gain.gain.linearRampToValueAtTime(0.12, ctx.currentTime + i * 0.08 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * 0.08 + 0.25);
+      osc.connect(gain);
+      gain.connect(this.seGain!);
+      osc.start(ctx.currentTime + i * 0.08);
+      osc.stop(ctx.currentTime + i * 0.08 + 0.25);
+    });
+  }
+
+  playThunderSE(): void {
+    const ctx = this.ensureContext();
+    // 鋭い放電音
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(3000, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.15);
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+    osc.connect(gain);
+    gain.connect(this.seGain!);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.3);
+    // 残響
+    const rumble = ctx.createOscillator();
+    const rumbleGain = ctx.createGain();
+    rumble.type = 'sawtooth';
+    rumble.frequency.setValueAtTime(60, ctx.currentTime + 0.1);
+    rumble.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + 0.5);
+    rumbleGain.gain.setValueAtTime(0.1, ctx.currentTime + 0.1);
+    rumbleGain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+    rumble.connect(rumbleGain);
+    rumbleGain.connect(this.seGain!);
+    rumble.start(ctx.currentTime + 0.1);
+    rumble.stop(ctx.currentTime + 0.5);
+  }
+
+  playWaterSE(): void {
+    const ctx = this.ensureContext();
+    // 水の流れる音（ウワーン）
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(300, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.15);
+    osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.4);
+    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.45);
+    osc.connect(gain);
+    gain.connect(this.seGain!);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.45);
+    // バブル
+    [0.05, 0.15, 0.25].forEach(t => {
+      const bubble = ctx.createOscillator();
+      const bGain = ctx.createGain();
+      bubble.type = 'sine';
+      bubble.frequency.setValueAtTime(800 + Math.random() * 400, ctx.currentTime + t);
+      bubble.frequency.exponentialRampToValueAtTime(1500, ctx.currentTime + t + 0.08);
+      bGain.gain.setValueAtTime(0.06, ctx.currentTime + t);
+      bGain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + t + 0.1);
+      bubble.connect(bGain);
+      bGain.connect(this.seGain!);
+      bubble.start(ctx.currentTime + t);
+      bubble.stop(ctx.currentTime + t + 0.1);
+    });
+  }
+
+  playLightSE(): void {
+    const ctx = this.ensureContext();
+    // 浄化の光（高音のハーモニー）
+    [523, 659, 784, 1047].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.1, ctx.currentTime + 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
+      osc.connect(gain);
+      gain.connect(this.seGain!);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.6);
+    });
+  }
+
+  playDarkSE(): void {
+    const ctx = this.ensureContext();
+    // 不気味な低音 + 逆行感
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(400, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(50, ctx.currentTime + 0.5);
+    gain.gain.setValueAtTime(0.01, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.2, ctx.currentTime + 0.15);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+    osc.connect(gain);
+    gain.connect(this.seGain!);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.5);
+    // ディストーション的な高音
+    const high = ctx.createOscillator();
+    const hGain = ctx.createGain();
+    high.type = 'square';
+    high.frequency.setValueAtTime(1500, ctx.currentTime + 0.1);
+    high.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.4);
+    hGain.gain.setValueAtTime(0.06, ctx.currentTime + 0.1);
+    hGain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+    high.connect(hGain);
+    hGain.connect(this.seGain!);
+    high.start(ctx.currentTime + 0.1);
+    high.stop(ctx.currentTime + 0.4);
+  }
+
+  playElementSE(element: string): void {
+    switch (element) {
+      case 'fire': this.playFireSE(); break;
+      case 'ice': this.playIceSE(); break;
+      case 'thunder': this.playThunderSE(); break;
+      case 'water': this.playWaterSE(); break;
+      case 'light': this.playLightSE(); break;
+      case 'dark': this.playDarkSE(); break;
+      default: this.playMagicSE(); break;
+    }
+  }
+
   playHealSE(): void {
     const ctx = this.ensureContext();
     const notes = [523, 659, 784, 1047]; // C5, E5, G5, C6

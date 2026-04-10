@@ -2,16 +2,16 @@ import { Skill } from '../characters/CharacterData';
 
 // ===== 攻撃星術 =====
 export const ATTACK_SKILLS: Skill[] = [
-  { name: 'フレイムバレット', type: 'attack', element: 'fire', spCost: 8, power: 40, target: 'single', hitCount: 1, description: '単体火属性攻撃' },
-  { name: 'ブレイズストーム', type: 'attack', element: 'fire', spCost: 22, power: 70, target: 'all', hitCount: 1, description: '全体火属性攻撃' },
-  { name: 'フロストエッジ', type: 'attack', element: 'ice', spCost: 8, power: 40, target: 'single', hitCount: 1, description: '単体氷属性攻撃' },
-  { name: 'ブリザードフィールド', type: 'attack', element: 'ice', spCost: 22, power: 70, target: 'all', hitCount: 1, description: '全体氷属性攻撃', effects: [{ type: 'spdDown', multiplier: 0.7, duration: 2 }] },
-  { name: 'サンダーボルト', type: 'attack', element: 'thunder', spCost: 8, power: 40, target: 'single', hitCount: 1, description: '単体雷属性攻撃' },
-  { name: 'ライトニングチェーン', type: 'attack', element: 'thunder', spCost: 22, power: 70, target: 'random', hitCount: 3, description: 'ランダム3回雷属性攻撃' },
-  { name: 'アクアスラッシュ', type: 'attack', element: 'water', spCost: 8, power: 40, target: 'single', hitCount: 1, description: '単体水属性攻撃' },
-  { name: 'タイダルウェーブ', type: 'attack', element: 'water', spCost: 22, power: 70, target: 'all', hitCount: 1, description: '全体水属性攻撃' },
-  { name: 'ルミナスレイ', type: 'attack', element: 'light', spCost: 12, power: 55, target: 'single', hitCount: 1, description: '単体光属性攻撃', effects: [{ type: 'blind', multiplier: 0, duration: 0 }] },
-  { name: 'シャドウバインド', type: 'attack', element: 'dark', spCost: 12, power: 55, target: 'single', hitCount: 1, description: '単体闇属性攻撃', effects: [{ type: 'spdDown', multiplier: 0.7, duration: 2 }] },
+  { name: 'フレイムバレット', type: 'attack', element: 'fire', spCost: 8, power: 60, target: 'single', hitCount: 1, description: '単体火属性攻撃' },
+  { name: 'ブレイズストーム', type: 'attack', element: 'fire', spCost: 22, power: 100, target: 'all', hitCount: 1, description: '全体火属性攻撃' },
+  { name: 'フロストエッジ', type: 'attack', element: 'ice', spCost: 8, power: 60, target: 'single', hitCount: 1, description: '単体氷属性攻撃' },
+  { name: 'ブリザードフィールド', type: 'attack', element: 'ice', spCost: 22, power: 100, target: 'all', hitCount: 1, description: '全体氷属性攻撃', effects: [{ type: 'spdDown', multiplier: 0.7, duration: 2 }] },
+  { name: 'サンダーボルト', type: 'attack', element: 'thunder', spCost: 8, power: 60, target: 'single', hitCount: 1, description: '単体雷属性攻撃' },
+  { name: 'ライトニングチェーン', type: 'attack', element: 'thunder', spCost: 22, power: 95, target: 'random', hitCount: 3, description: 'ランダム3回雷属性攻撃' },
+  { name: 'アクアスラッシュ', type: 'attack', element: 'water', spCost: 8, power: 60, target: 'single', hitCount: 1, description: '単体水属性攻撃' },
+  { name: 'タイダルウェーブ', type: 'attack', element: 'water', spCost: 22, power: 100, target: 'all', hitCount: 1, description: '全体水属性攻撃' },
+  { name: 'ルミナスレイ', type: 'attack', element: 'light', spCost: 12, power: 80, target: 'single', hitCount: 1, description: '単体光属性攻撃', effects: [{ type: 'blind', multiplier: 0, duration: 0 }] },
+  { name: 'シャドウバインド', type: 'attack', element: 'dark', spCost: 12, power: 80, target: 'single', hitCount: 1, description: '単体闇属性攻撃', effects: [{ type: 'spdDown', multiplier: 0.7, duration: 2 }] },
 ];
 
 // ===== 回復星術 =====

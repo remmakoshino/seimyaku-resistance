@@ -18,6 +18,7 @@ export interface BattleEvent {
   targetId: string;
   value: number;
   skillName?: string;
+  element?: string;
   elementMultiplier?: number;
 }
 
@@ -99,7 +100,7 @@ export class BattleSystem {
           false,
         );
         target.hp = Math.max(0, target.hp - result.damage);
-        events.push({ type: 'damage', actorId, targetId: target.id, value: result.damage, elementMultiplier: result.elementMultiplier });
+        events.push({ type: 'damage', actorId, targetId: target.id, value: result.damage, element: actor.element, elementMultiplier: result.elementMultiplier });
         if (result.isWeak) events.push({ type: 'weak', actorId, targetId: target.id, value: result.damage });
         if (result.isResist) events.push({ type: 'resist', actorId, targetId: target.id, value: result.damage });
         if (result.isCritical) events.push({ type: 'critical', actorId, targetId: target.id, value: result.damage });
@@ -129,7 +130,7 @@ export class BattleSystem {
               false,
             );
             target.hp = Math.max(0, target.hp - result.damage);
-            events.push({ type: 'damage', actorId, targetId: target.id, value: result.damage, skillName: skill.name, elementMultiplier: result.elementMultiplier });
+            events.push({ type: 'damage', actorId, targetId: target.id, value: result.damage, skillName: skill.name, element: skill.element, elementMultiplier: result.elementMultiplier });
             if (result.isWeak) events.push({ type: 'weak', actorId, targetId: target.id, value: result.damage });
             if (result.isResist) events.push({ type: 'resist', actorId, targetId: target.id, value: result.damage });
             if (target.hp <= 0) events.push({ type: 'death', actorId, targetId: target.id, value: 0 });
@@ -281,7 +282,7 @@ export class BattleSystem {
       // 覚醒ゲージ蓄積
       this.addAwakenGauge(target.id, GAME.AWAKEN_DAMAGE_GAIN);
 
-      events.push({ type: 'damage', actorId: enemyId, targetId: target.id, value: result.damage });
+      events.push({ type: 'damage', actorId: enemyId, targetId: target.id, value: result.damage, element: enemy.element });
       if (target.hp <= 0) {
         this.atbManager.setAlive(target.id, false);
         events.push({ type: 'death', actorId: enemyId, targetId: target.id, value: 0 });
@@ -313,7 +314,7 @@ export class BattleSystem {
 
           this.addAwakenGauge(target.id, GAME.AWAKEN_DAMAGE_GAIN);
 
-          events.push({ type: 'damage', actorId: enemyId, targetId: target.id, value: result.damage, skillName: skill.name, elementMultiplier: result.elementMultiplier });
+          events.push({ type: 'damage', actorId: enemyId, targetId: target.id, value: result.damage, skillName: skill.name, element: skill.element, elementMultiplier: result.elementMultiplier });
           if (result.isWeak) events.push({ type: 'weak', actorId: enemyId, targetId: target.id, value: result.damage });
           if (result.isResist) events.push({ type: 'resist', actorId: enemyId, targetId: target.id, value: result.damage });
           if (target.hp <= 0) {
