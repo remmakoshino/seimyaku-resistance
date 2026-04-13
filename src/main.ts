@@ -7,6 +7,7 @@ import { BattleScene } from './scenes/BattleScene';
 import { ExplorationScene } from './scenes/ExplorationScene';
 import { ResultScene } from './scenes/ResultScene';
 import { StoryScene } from './scenes/StoryScene';
+import { SeishousekiScene } from './scenes/SeishousekiScene';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -34,6 +35,7 @@ const config: Phaser.Types.Core.GameConfig = {
     BattleScene,
     ResultScene,
     StoryScene,
+    SeishousekiScene,
   ],
   render: {
     pixelArt: false,

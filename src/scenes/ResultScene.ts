@@ -3,20 +3,24 @@ import { SCENES, GAME, COLORS } from '../utils/constants';
 import { SaveData, SaveSystem } from '../systems/SaveSystem';
 import { LEVEL_UP_STATS } from '../characters/CharacterData';
 import { audioGenerator } from '../utils/AudioGenerator';
+import { addSmpToSeishouseki } from '../systems/SeishousekiSystem';
+import { checkKillUnlock, createDefaultAwakenProgress } from '../battle/AwakeningSystem';
 
 export class ResultScene extends Phaser.Scene {
   private saveData!: SaveData;
   private rewards!: { exp: number; money: number; smp: number; items: string[] };
   private isBoss = false;
+  private enemyCount = 1;
 
   constructor() {
     super({ key: SCENES.RESULT });
   }
 
-  init(data: { saveData: SaveData; rewards: { exp: number; money: number; smp: number; items: string[] }; isBoss: boolean }): void {
+  init(data: { saveData: SaveData; rewards: { exp: number; money: number; smp: number; items: string[] }; isBoss: boolean; enemyCount?: number }): void {
     this.saveData = data.saveData;
     this.rewards = data.rewards;
     this.isBoss = data.isBoss;
+    this.enemyCount = data.enemyCount ?? 1;
   }
 
   create(): void {
@@ -88,6 +92,24 @@ export class ResultScene extends Phaser.Scene {
           char.agility += growth.agility ?? 0;
         }
         levelUpInfo.push(`${char.name} → Lv.${char.level}`);
+      }
+
+      // SMP を装備中の星晶石に分配
+      if (this.rewards.smp > 0 && char.seishouseki.length > 0) {
+        const smpPerSeki = Math.floor(this.rewards.smp / char.seishouseki.length);
+        for (const seki of char.seishouseki) {
+          addSmpToSeishouseki(seki, smpPerSeki);
+        }
+      }
+
+      // 討伐数カウント（敵の数だけ加算）
+      if (!char.awakenProgress) {
+        char.awakenProgress = createDefaultAwakenProgress();
+      }
+      char.awakenProgress.killCount += this.enemyCount;
+      const awakenUnlocks = checkKillUnlock(char.id, char.awakenProgress);
+      for (const techName of awakenUnlocks) {
+        levelUpInfo.push(`${char.name}: 覚醒技 ${techName} 解放！`);
       }
     }
 

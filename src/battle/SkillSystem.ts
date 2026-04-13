@@ -32,7 +32,26 @@ export const SUPPORT_SKILLS: Skill[] = [
   { name: 'スロウダウン', type: 'support', element: 'none', spCost: 10, power: 0, target: 'single', hitCount: 1, description: '敵1体のATB速度0.5倍（3ターン）', effects: [{ type: 'spdDown', multiplier: 0.5, duration: 3 }] },
 ];
 
-export const ALL_SKILLS = [...ATTACK_SKILLS, ...RECOVERY_SKILLS, ...SUPPORT_SKILLS];
+// ===== バリア星術 =====
+export const BARRIER_SKILLS: Skill[] = [
+  {
+    name: 'バリア', type: 'support', element: 'none', spCost: 12, power: 0,
+    target: 'single', hitCount: 1, description: '味方1人に物理ダメージ半減バリア',
+    effects: [{ type: 'barrier', multiplier: 0.5, duration: 5 }],
+  },
+  {
+    name: 'マジックバリア', type: 'support', element: 'none', spCost: 12, power: 0,
+    target: 'single', hitCount: 1, description: '味方1人に魔術ダメージ半減バリア',
+    effects: [{ type: 'mbarrier', multiplier: 0.5, duration: 5 }],
+  },
+  {
+    name: 'バリアフィールド', type: 'support', element: 'none', spCost: 30, power: 0,
+    target: 'all', hitCount: 1, description: '味方全員にバリア+マジックバリア',
+    effects: [{ type: 'barrier', multiplier: 0.5, duration: 4 }, { type: 'mbarrier', multiplier: 0.5, duration: 4 }],
+  },
+];
+
+export const ALL_SKILLS = [...ATTACK_SKILLS, ...RECOVERY_SKILLS, ...SUPPORT_SKILLS, ...BARRIER_SKILLS];
 
 export function getSkillByName(name: string): Skill | undefined {
   return ALL_SKILLS.find(s => s.name === name);

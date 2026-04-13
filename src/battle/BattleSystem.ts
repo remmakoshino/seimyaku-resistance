@@ -4,6 +4,7 @@ import { Skill } from '../characters/CharacterData';
 import { ATBManager, ATBUnit } from './ATBManager';
 import { calculateDamage, calculateHealing, DamageResult } from './ElementSystem';
 import { GAME } from '../utils/constants';
+import { getAwakenPower, getAwakenTech } from './AwakeningSystem';
 
 export type BattleAction =
   | { type: 'attack'; targetId: string }
@@ -184,8 +185,11 @@ export class BattleSystem {
                 events.push({ type: 'debuff', actorId, targetId: target.id, value: 0, skillName: skill.name });
               }
             } else {
-              const target = this.state.allies.find(a => a.id === action.targetId);
-              if (target) {
+              // バフ系（バリア含む）
+              const targets = skill.target === 'all'
+                ? this.state.allies.filter(a => a.hp > 0)
+                : [this.state.allies.find(a => a.id === action.targetId)].filter(Boolean) as Character[];
+              for (const target of targets) {
                 this.applyEffects(target.id, skill.effects, actorId);
                 events.push({ type: 'buff', actorId, targetId: target.id, value: 0, skillName: skill.name });
               }
@@ -277,12 +281,13 @@ export class BattleSystem {
       if (aliveAllies.length === 0) return events;
       const target = aliveAllies[Math.floor(Math.random() * aliveAllies.length)];
       const result = calculateDamage(enemy.attack, target.defense, 30, enemy.element, target.element, false, this.atbManager.getUnit(target.id)?.isDefending ?? false);
-      target.hp = Math.max(0, target.hp - result.damage);
+      const reducedDamage = this.applyBarrierReduction(target.id, result.damage, false);
+      target.hp = Math.max(0, target.hp - reducedDamage);
 
       // 覚醒ゲージ蓄積
       this.addAwakenGauge(target.id, GAME.AWAKEN_DAMAGE_GAIN);
 
-      events.push({ type: 'damage', actorId: enemyId, targetId: target.id, value: result.damage, element: enemy.element });
+      events.push({ type: 'damage', actorId: enemyId, targetId: target.id, value: reducedDamage, element: enemy.element });
       if (target.hp <= 0) {
         this.atbManager.setAlive(target.id, false);
         events.push({ type: 'death', actorId: enemyId, targetId: target.id, value: 0 });
@@ -310,11 +315,12 @@ export class BattleSystem {
           const atkStat = isMagic ? enemy.magicAttack : enemy.attack;
           const defStat = isMagic ? target.magicDefense : target.defense;
           const result = calculateDamage(atkStat, defStat, skill.power, skill.element, target.element, isMagic, this.atbManager.getUnit(target.id)?.isDefending ?? false);
-          target.hp = Math.max(0, target.hp - result.damage);
+          const reducedDamage = this.applyBarrierReduction(target.id, result.damage, isMagic);
+          target.hp = Math.max(0, target.hp - reducedDamage);
 
           this.addAwakenGauge(target.id, GAME.AWAKEN_DAMAGE_GAIN);
 
-          events.push({ type: 'damage', actorId: enemyId, targetId: target.id, value: result.damage, skillName: skill.name, element: skill.element, elementMultiplier: result.elementMultiplier });
+          events.push({ type: 'damage', actorId: enemyId, targetId: target.id, value: reducedDamage, skillName: skill.name, element: skill.element, elementMultiplier: result.elementMultiplier });
           if (result.isWeak) events.push({ type: 'weak', actorId: enemyId, targetId: target.id, value: result.damage });
           if (result.isResist) events.push({ type: 'resist', actorId: enemyId, targetId: target.id, value: result.damage });
           if (target.hp <= 0) {
@@ -435,6 +441,36 @@ export class BattleSystem {
         this.atbManager.setSpeedMultiplier(targetId, 1.0);
       }
     }
+  }
+
+  // バリアによるダメージ軽減
+  applyBarrierReduction(targetId: string, damage: number, isMagic: boolean): number {
+    const effects = this.state.activeEffects.get(targetId) ?? [];
+    const barrierType = isMagic ? 'mbarrier' : 'barrier';
+    const barrier = effects.find(e => e.type === barrierType);
+    if (barrier) {
+      return Math.floor(damage * barrier.multiplier);
+    }
+    // バリアフィールド等でbarrier typeが両方兼ねている場合
+    const genericBarrier = effects.find(e => e.type === 'barrier');
+    if (genericBarrier && isMagic) {
+      // 通常のbarrierは物理のみ
+      return damage;
+    }
+    return damage;
+  }
+
+  // バリア状態を取得（UI表示用）
+  getBarrierState(targetId: string): { hasBarrier: boolean; hasMBarrier: boolean; barrierTurns: number; mbarrierTurns: number } {
+    const effects = this.state.activeEffects.get(targetId) ?? [];
+    const barrier = effects.find(e => e.type === 'barrier');
+    const mbarrier = effects.find(e => e.type === 'mbarrier');
+    return {
+      hasBarrier: !!barrier,
+      hasMBarrier: !!mbarrier,
+      barrierTurns: barrier?.remainingTurns ?? 0,
+      mbarrierTurns: mbarrier?.remainingTurns ?? 0,
+    };
   }
 
   private checkBattleEnd(): void {

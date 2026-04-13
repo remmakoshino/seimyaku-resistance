@@ -1,4 +1,5 @@
 import { Character, INITIAL_CHARACTERS } from '../characters/CharacterData';
+import { createDefaultAwakenProgress } from '../battle/AwakeningSystem';
 
 export interface SaveData {
   currentChapter: number;
@@ -9,6 +10,7 @@ export interface SaveData {
   storyFlags: Record<string, boolean>;
   playTime: number;
   clearedChapters: number[];
+  version?: number;
 }
 
 export interface InventoryItem {
@@ -20,13 +22,17 @@ export interface InventoryItem {
 }
 
 const SAVE_KEY = 'seimyaku_resistance_save';
+const CURRENT_VERSION = 2;
 
 export class SaveSystem {
   static getDefaultSave(): SaveData {
     return {
       currentChapter: 1,
       party: ['rei', 'kanade', 'jin'],
-      characters: INITIAL_CHARACTERS.map(c => ({ ...c })),
+      characters: INITIAL_CHARACTERS.map(c => ({
+        ...c,
+        awakenProgress: createDefaultAwakenProgress(),
+      })),
       inventory: [
         { id: 'potion', name: 'ポーション', description: 'HP30%回復', quantity: 5, type: 'consumable' },
         { id: 'ether', name: 'エーテル', description: 'SP30%回復', quantity: 3, type: 'consumable' },
@@ -35,7 +41,24 @@ export class SaveSystem {
       storyFlags: {},
       playTime: 0,
       clearedChapters: [],
+      version: CURRENT_VERSION,
     };
+  }
+
+  static migrate(data: SaveData): SaveData {
+    if (!data.version || data.version < 2) {
+      // v1 → v2: 覚醒進行状態の追加
+      for (const char of data.characters) {
+        if (!char.awakenProgress) {
+          char.awakenProgress = createDefaultAwakenProgress();
+        }
+        if (!char.seishouseki) {
+          char.seishouseki = [];
+        }
+      }
+      data.version = 2;
+    }
+    return data;
   }
 
   static save(data: SaveData): void {
@@ -50,7 +73,8 @@ export class SaveSystem {
     try {
       const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return null;
-      return JSON.parse(raw) as SaveData;
+      const data = JSON.parse(raw) as SaveData;
+      return this.migrate(data);
     } catch {
       console.warn('ロードに失敗しました');
       return null;

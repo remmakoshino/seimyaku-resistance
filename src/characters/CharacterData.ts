@@ -29,7 +29,7 @@ export interface Skill {
 }
 
 export interface StatusEffect {
-  type: 'atkUp' | 'defUp' | 'spdUp' | 'atkDown' | 'defDown' | 'spdDown' | 'regen' | 'poison' | 'blind' | 'barrier';
+  type: 'atkUp' | 'defUp' | 'spdUp' | 'atkDown' | 'defDown' | 'spdDown' | 'regen' | 'poison' | 'blind' | 'barrier' | 'mbarrier';
   multiplier: number;
   duration: number;
 }
@@ -72,6 +72,11 @@ export interface Character {
   colorHex: string;
   awakenSkillName: string;
   awakenSkillDescription: string;
+  awakenProgress?: {
+    killCount: number;
+    useCount: number[];
+    unlockedTechs: string[];
+  };
 }
 
 // ===== 初期キャラクターデータ =====

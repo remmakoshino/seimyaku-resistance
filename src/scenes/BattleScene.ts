@@ -4,10 +4,11 @@ import { Character, INITIAL_CHARACTERS } from '../characters/CharacterData';
 import { Enemy, ENEMIES, BOSSES, ENCOUNTER_TABLES } from '../characters/EnemyData';
 import { BattleSystem, BattleAction, BattleEvent } from '../battle/BattleSystem';
 import { ATBUnit } from '../battle/ATBManager';
-import { ATTACK_SKILLS, RECOVERY_SKILLS, SUPPORT_SKILLS } from '../battle/SkillSystem';
+import { ATTACK_SKILLS, RECOVERY_SKILLS, SUPPORT_SKILLS, BARRIER_SKILLS } from '../battle/SkillSystem';
 import { Skill } from '../characters/CharacterData';
 import { audioGenerator } from '../utils/AudioGenerator';
 import { SaveData } from '../systems/SaveSystem';
+import { getAvailableSkillsFromSeishouseki } from '../systems/SeishousekiSystem';
 
 type CommandPhase = 'waiting' | 'command' | 'skill_select' | 'target_select' | 'item_select' | 'animating';
 
@@ -300,6 +301,29 @@ export class BattleScene extends Phaser.Scene {
       awkFill.fillStyle(awkRatio >= 1 ? 0xFFD700 : 0x886600, 1);
       awkFill.fillRect(awkX, awkY, awkBarW * awkRatio, 6);
       this.statusContainer.add(awkFill);
+
+      // バリア/Mバリアインジケーター
+      const barrierState = this.battleSystem.getBarrierState(ally.id);
+      const barrierY = awkY + 9;
+      if (barrierState.hasBarrier) {
+        const bIcon = this.add.text(awkX, barrierY, `B:${barrierState.barrierTurns}`, {
+          fontFamily: GAME.FONT_FAMILY,
+          fontSize: `${Math.max(fontSize - 6, 8)}px`,
+          color: '#44AAFF',
+          fontStyle: 'bold',
+        });
+        this.statusContainer.add(bIcon);
+      }
+      if (barrierState.hasMBarrier) {
+        const mbX = barrierState.hasBarrier ? awkX + atbBarW * 0.35 : awkX;
+        const mbIcon = this.add.text(mbX, barrierY, `MB:${barrierState.mbarrierTurns}`, {
+          fontFamily: GAME.FONT_FAMILY,
+          fontSize: `${Math.max(fontSize - 6, 8)}px`,
+          color: '#AA44FF',
+          fontStyle: 'bold',
+        });
+        this.statusContainer.add(mbIcon);
+      }
     });
   }
 
@@ -380,9 +404,7 @@ export class BattleScene extends Phaser.Scene {
         this.showSkillSelect(w, h);
         break;
       case 'seishouseki_skill':
-        // 星晶技は後で実装。通常攻撃に戻す
-        this.selectedCommand = 'attack';
-        this.showTargetSelect(w, h, 'enemy');
+        this.showSeishousekiSkillSelect(w, h);
         break;
       case 'item':
         this.showItemSelect(w, h);
@@ -425,7 +447,7 @@ export class BattleScene extends Phaser.Scene {
     this.commandContainer.add(backText);
 
     // スキルリスト
-    const allSkills = [...ATTACK_SKILLS, ...RECOVERY_SKILLS, ...SUPPORT_SKILLS];
+    const allSkills = [...ATTACK_SKILLS, ...RECOVERY_SKILLS, ...SUPPORT_SKILLS, ...BARRIER_SKILLS];
     const ally = this.battleSystem.getState().allies.find(a => a.id === this.activeAllyId);
     const skillY = cmdY + 30;
     const skillH = 30;
@@ -463,9 +485,105 @@ export class BattleScene extends Phaser.Scene {
               this.showTargetSelect(w, h, skill.target === 'all' ? 'all_ally' : 'ally');
             }
           } else {
-            // support
+            // support（バリア系は味方対象、target=allならall_ally）
             const isDebuff = skill.effects?.some(e => e.multiplier < 1.0);
-            this.showTargetSelect(w, h, isDebuff ? 'enemy' : 'ally');
+            if (isDebuff) {
+              this.showTargetSelect(w, h, 'enemy');
+            } else if (skill.target === 'all') {
+              this.showTargetSelect(w, h, 'all_ally');
+            } else {
+              this.showTargetSelect(w, h, 'ally');
+            }
+          }
+        });
+      }
+    });
+  }
+
+  private showSeishousekiSkillSelect(w: number, h: number): void {
+    this.commandContainer.removeAll(true);
+    this.phase = 'skill_select';
+
+    const cmdY = h * 0.72;
+    const cmdH = h * 0.26;
+    const margin = w * GAME.SAFE_MARGIN;
+
+    const bg = this.add.graphics();
+    bg.fillStyle(0x0D1117, 0.9);
+    bg.fillRoundedRect(margin, cmdY, w - margin * 2, cmdH, 8);
+    bg.lineStyle(2, 0x00BCD4, 0.7);
+    bg.strokeRoundedRect(margin, cmdY, w - margin * 2, cmdH, 8);
+    this.commandContainer.add(bg);
+
+    // 戻るボタン
+    const backText = this.add.text(margin + 15, cmdY + 8, '← 戻る', {
+      fontFamily: GAME.FONT_FAMILY,
+      fontSize: '14px',
+      color: '#AAAACC',
+    }).setInteractive();
+    backText.on('pointerdown', () => {
+      this.showCommandMenu(w, h);
+    });
+    this.commandContainer.add(backText);
+
+    // 装備中の星晶石からスキル取得
+    const ally = this.battleSystem.getState().allies.find(a => a.id === this.activeAllyId);
+    const charData = this.saveData.characters.find(c => c.id === this.activeAllyId);
+    const seishousekiSkills = charData ? getAvailableSkillsFromSeishouseki(charData.seishouseki) : [];
+
+    if (seishousekiSkills.length === 0) {
+      const noSkill = this.add.text(w / 2, cmdY + cmdH / 2, '使える星晶技がありません', {
+        fontFamily: GAME.FONT_FAMILY,
+        fontSize: '14px',
+        color: '#666666',
+      }).setOrigin(0.5);
+      this.commandContainer.add(noSkill);
+      return;
+    }
+
+    const skillY = cmdY + 30;
+    const skillH = 30;
+
+    seishousekiSkills.slice(0, Math.floor((cmdH - 40) / skillH)).forEach((skill, i) => {
+      const y = skillY + i * skillH;
+      const canUse = ally && ally.sp >= skill.spCost;
+
+      const text = this.add.text(margin + 15, y, `${skill.name} (SP:${skill.spCost})`, {
+        fontFamily: GAME.FONT_FAMILY,
+        fontSize: '14px',
+        color: canUse ? '#00BCD4' : '#555555',
+      });
+      this.commandContainer.add(text);
+
+      const elemColor = this.getElementColor(skill.element);
+      const dot = this.add.graphics();
+      dot.fillStyle(elemColor, canUse ? 1 : 0.3);
+      dot.fillCircle(w - margin - 20, y + 8, 5);
+      this.commandContainer.add(dot);
+
+      if (canUse) {
+        const hit = this.add.rectangle(w / 2, y + 8, w - margin * 2, skillH).setInteractive().setAlpha(0.001);
+        this.commandContainer.add(hit);
+        hit.on('pointerdown', () => {
+          audioGenerator.playCursorSE();
+          this.selectedSkill = skill;
+          if (skill.type === 'attack') {
+            this.showTargetSelect(w, h, skill.target === 'all' ? 'all_enemy' : 'enemy');
+          } else if (skill.type === 'recovery') {
+            if (skill.name === 'リヴァイブ') {
+              this.showTargetSelect(w, h, 'dead_ally');
+            } else {
+              this.showTargetSelect(w, h, skill.target === 'all' ? 'all_ally' : 'ally');
+            }
+          } else {
+            const isDebuff = skill.effects?.some(e => e.multiplier < 1.0);
+            if (isDebuff) {
+              this.showTargetSelect(w, h, 'enemy');
+            } else if (skill.target === 'all') {
+              this.showTargetSelect(w, h, 'all_ally');
+            } else {
+              this.showTargetSelect(w, h, 'ally');
+            }
           }
         });
       }
@@ -993,6 +1111,7 @@ export class BattleScene extends Phaser.Scene {
             saveData: this.saveData,
             rewards,
             isBoss: this.isBoss,
+            enemyCount: this.enemies.length,
           });
         });
       } else {

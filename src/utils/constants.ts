@@ -119,4 +119,5 @@ export const SCENES = {
   BATTLE: 'BattleScene',
   RESULT: 'ResultScene',
   STORY: 'StoryScene',
+  SEISHOUSEKI: 'SeishousekiScene',
 } as const;

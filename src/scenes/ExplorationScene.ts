@@ -345,6 +345,18 @@ export class ExplorationScene extends Phaser.Scene {
     menuBtn.on('pointerdown', () => {
       this.scene.start(SCENES.CHARACTER_SELECT, { saveData: this.saveData });
     });
+
+    // 星晶石管理ボタン
+    const sekiBtn = this.add.text(w - 10, 45, '💎', {
+      fontFamily: GAME.FONT_FAMILY,
+      fontSize: `${Math.floor(w * 0.05)}px`,
+      color: '#00BCD4',
+    }).setOrigin(1, 0).setInteractive();
+
+    sekiBtn.on('pointerdown', () => {
+      audioGenerator.playCursorSE();
+      this.scene.start(SCENES.SEISHOUSEKI, { saveData: this.saveData });
+    });
   }
 
   private createBossButton(w: number, h: number): void {
